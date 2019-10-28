@@ -1,78 +1,139 @@
-# E08b-Adding-Tiles
+# E09a-Scripting
 
-We will continue adding on to the first Godot project (E08a-Paddle-Ball). In this exercise, we will be learning more about groups and scenes and adding tiles to the game.
+We will continue adding on to the first Godot project (E08a-Paddle-Ball). In this exercise, we will be learning more about scripting and signals in gdScript.
 
 As usual, Fork and Clone this repository. Pay attention to where (on the file system) it is being saved.
 
  * Open Godot. In the project viewer, select Import.
  * Click Browse, and find the folder that contains your Cloned Project. Select the project.godot file and Open it. Import & Edit.
- * You should see the project in the state in which we left it at the end of class on Monday. We will now add the next steps.
- * In the Scene Panel, right-click on the World and Add Child Node. Add a "Node" and name it "Tiles"
- * Right-click on the new Tiles node and Add Child Node. Add a "Node" and name it "Gray Tiles"
- * Right-click on Gray Tiles and Add Child Node. Add a "StaticBody2D" and name it "Tile"
- * Right-click on Tile and Add Child Node. Add a "Sprite"
- * Select the Sprite and drag the "tile_gray.png" file from the Assets folder (in the FileSystem panel) to the Texture field in the Inspector Panel.
- * Right-click on Tile and Add Child Node. Add a "CollisionShape2D"
- * Select the CollisionShape2D and in the Inspector Panel, select the Shape dropdown. Select "New RectangleShape2D"
- * In the Viewport, change the dimensions of the CollisionShape2D to match the sprite. You may have to turn off Snapping
- * Select Tile in the Scene Panel, and "Make sure the children's objects are not selectable". You should see that icon appear next to the Tile Node in the Scene Panel
- * Drag the Tile about two-thirds of the way down the viewport, near the left side
- * Right-click on Tile and Attach Script. Save the script as "res://Scripts/tile.gd"
- * Remove lines 3–13 and replace them with the following:
+ * You should see the project in the state in which we left it at the end of class last Monday. We will now add the next steps.
+ * In the Scene panel, right-click on the World node and Add Child Node. Select a Label. Rename that Label "Score". Drag the label in to the top left corner of the Viewport
+ * In the Scene panel, right-click on the World node and Add Child Node. Select a Label. Rename that Label "Lives". Drag the label in to the top right corner of the Viewport
+ * Select the new Score label. In the inspector panel, change the Text to "Score:". Then, under Control, select Custom Fonts
+ * In the Font drop down, click [empty], and select New DynamicFont
+ * Click on DynamicFont and select Edit
+ * In the new menu that appears, select Font, Font Data, and click Load. A file-picker menu will appear.
+ * In res://Asserts, select OstrichSans-Heavy.otf
+ * Under Settings, Size, change the value to 18
+ * Now select the Lives label, change the Text to "Lives:" and add the same font (and the same font size) to this label
+ * Right-click on the World node and Attach Script. Name the script res://Scripts/world.gd
+ * Delete lines 3–132 and replace them with the following:
  ```
- var gray = preload("res://Assets/tile_gray.png")
- var red = preload("res://Assets/tile_red.png")
- var blue = preload("res://Assets/tile_blue.png")
- var green = preload("res://Assets/tile_green.png")
- var purple = preload("res://Assets/tile_purple.png")
+ export var score = 0
+ export var lives = 3
+ 
+ func increase_score(s):
+  score += int(s)
+  fund_node("Score").update_score()
+  
+ func decrease_lives():
+  lives -= 1
+  find_node("Lives").update_lives()
+ ```
+ * Right-click on Score and Attach Script. Name the script res://Scripts/score.gd
+ * Delete lines 3–13 and replace them with the following:
+ ```
+ func _ready():
+  update_score()
+ 
+ func update_score():
+  text = "Score: " + str(get_parent().score)
+ ```
+ * Right-click on Lives and Attach Script. Name the script res://Scripts/lives.gd
+ * Delete lines 3–13 and replace them with the following:
+ ```
+ func _ready():
+  update_lives()
+ 
+ func update_lives():
+  text = "Lives: " + str(get_parent().lives)
+ ```
+ * Edit the script attached to the Ball node (res://Scripts/ball.gd):
+ ```
+ extends RigidBody2D
+ 
+ export var maxspeed = 300
+ 
+ signal lives
+ signal score
+ 
+ func _ready():
+  contact_monitor = true
+  set_max_contacts_reported(4)
+  var WorldNode = get_node("/root/World")
+  connect("score", WorldNode, "increase_score")
+  connect("lives", WorldNode, "decrease_lives")
+ 
+ func _physics_process(delta):
+  var bodies = get_colliding_bodies()
+  for body in bodies:
+   if body.is_in_group("Tile"):
+    emit_signal("score",body.score)
+    body.queue_free()
+   if body.get_name() == "Paddle":
+    pass
+   
+  if position.y > get_viewport_rect().end.y:
+   emit_signal("lives")
+   queue_free()
+ ```
+ * Right click on the Ball, Save Branch as Scene. Save it to res://Scenes/Ball.tscn
+ * Edit the script attached to the Paddle node (res://Scripts/paddle.gd):
+ ```
+ extends KinematicBody2D
+ 
+ var new_ball = preload("res://Scenes/Ball.tscn")
+ 
+ func _ready():
+  set_process_input(true)
+ 
+ func _physics_process(delta):
+  var mouse_x = get_viewport().get_mouse_position().x
+  position = Vector2(mouse_x, position.y)
+ 
+ func _input(event):
+  if event is InputEventMouseButton and event.pressed:
+   if not get_parent().has_node("Ball"):
+    var ball = new_ball.instance()
+    ball.position = position - Vector2(0, 32)
+    ball.name = "Ball"
+    ball.linear_velocity = Vector2(200, -200)
+    get_parent().add_child(ball)
+ 
+ ```
+ * Under the Scene menu, select New Scene
+ * Create Root Node: 2D Scene, and name it "Game Over"
+ * Add a Child Node: Node2D and rename it "Message"
+ * Under Message, Add Child Node: Label
+ * Select the Label, and in the Inspector Panel, change Text to "Game Over!"
+ * Set Align to Center
+ * Select Custom Fonts and set the font to res://Assets/OstrichSansInline-Regular.otf
+ * In Settings: set the Size to 40
+ * Drag the Label to the middle of the Viewport and expand it so the message is centered on the screen
+ * Under Message, Add Child Node: ColorRect
+ * In the Inspector Panel, change the Color to black
+ * Resize the ColorRect to cover the text of the Label
+ * In the Scene hierarchy, move ColorRect above Label (under Message)
+ * You should now see the message against a black rectangle
+ * Save the scene as res://Scenes/End.tscn
+ * Go back to the World Scene
+ * Edit the script attached to the World node (res://Scripts/world.gd):
+ ```
+ extends Node
+ 
+ export var score = 0
+ export var lives = 3
+ 
+ func increase_score(s):
+  score += int(s)
+  fund_node("Score").update_score()
+  
+ func decrease_lives():
+  lives -= 1
+  find_node("Lives").update_lives()
+  if lives <= 0:
+   get_tree().change_scene("res://Scenes/End.tscn")
+ ```
 
- onready var sprite = get_node("Sprite")
- var score = 10
-
-func _ready():
-    if get_parent().name == "Gray Tiles":
-        sprite.set_texture(gray)
-    if get_parent().name == "Red Tiles":
-        sprite.set_texture(red)
-        score = 20
-    if get_parent().name == "Blue Tiles":
-        sprite.set_texture(blue)
-        score = 30
-    if get_parent().name == "Green Tiles":
-        sprite.set_texture(green)
-        score = 40
-    if get_parent().name == "Purple Tiles":
-        sprite.set_texture(purple)
-        score = 50
-```
-* Save Tile.gd
-* Select the Tile and (in the tab next to the Inspector Panel), open the Node Panel
-* Click the Groups tab, and type "Tiles" in the text box. Click the Add button
-* Right-click on the Tile and select Save Branch as Scene. Save the scene in the Scenes folder as Tile.tscn
-* Right-click on the Tile and Duplicate. Repeat this until you have Tile9 (nine tiles in total)
-* Starting with Tile9, drag it toward the right side of the Viewport. Ultimately, you want a row of tiles, one grid space from each other. Repeat this process for Tile1–Tile8.
-* Right-click on Tiles and Add Child Node. Add a "Node" and name it "Red Tiles"
-* Right-click on Red Tiles and "Instance Child Scene". Choose Tile.tscn
-* Move the new tile one space above the first tile in the Gray Tiles row. Duplicate it eight times and space them out so they resemble the tiles in the row below.
-* Save the World scene and run the game. You should see a row of gray tiles and a row (above it) of red tiles.
-* Repeat this process for "Blue Tiles", "Green Tiles", and "Purple Tiles"
-* Right-click on Ball in the Scene Panel. Attach Script. Save the script as "res://Scripts/ball.gd"
-* Remove lies 3–13 and replace them with the following:
-```
-func _ready():
-    contact_monitor = true
-    set_max_contacts_reported(4)
-
-func _physics_process(delta):
-    var bodies = get_colliding_bodies()
-    for body in bodies:
-        if body.is_in_group("Tiles"):
-            body.queue_free()
-    
-    if position.y > get_viewport_rect().end.y:
-        queue_free()
-```
-* Save the World Scene and run the game
-
-If you have five rows of tiles that disappear when the ball hits them, and if the console prints "Died" when the ball falls off the bottom of the screen, you have completed the exercise. Save the Scene, edit your LICENSE and README, commit everything to Github, and turn in the URL of your repository on Canvas.
+If you have score and lives labels that update, and if you get a end-game screen if your lives get to zero, you have completed the exercise. Save the Scenes, edit your LICENSE and README, commit everything to Github, and turn in the URL of your repository on Canvas.
  
