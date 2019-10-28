@@ -24,7 +24,7 @@ As usual, Fork and Clone this repository. Pay attention to where (on the file sy
  
  func increase_score(s):
   score += int(s)
-  fund_node("Score").update_score()
+  find_node("Score").update_score()
   
  func decrease_lives():
   lives -= 1
@@ -126,7 +126,7 @@ As usual, Fork and Clone this repository. Pay attention to where (on the file sy
  
  func increase_score(s):
   score += int(s)
-  fund_node("Score").update_score()
+  find_node("Score").update_score()
   
  func decrease_lives():
   lives -= 1
